@@ -94,6 +94,7 @@ export const purchaseItems = pgTable("purchase_items", {
   foreignKey({ name: "purchase_items_product_fk", columns: [t.businessId, t.productId], foreignColumns: [products.businessId, products.id] }),
   index("purchase_items_purchase_idx").on(t.purchaseId),
   index("purchase_items_business_product_idx").on(t.businessId, t.productId),
+  index("purchase_items_product_idx").on(t.productId),
   check("purchase_items_quantity_positive", sql`${t.quantity} > 0`),
   check("purchase_items_amounts_non_negative", sql`${t.unitCost} >= 0 and ${t.discount} >= 0 and ${t.additionalCosts} >= 0 and ${t.allocatedCosts} >= 0 and ${t.allocatedDiscount} >= 0 and ${t.landedTotal} >= 0`),
   check("purchase_items_subtotal_consistent", sql`${t.subtotal} = round(${t.quantity} * ${t.unitCost}, 2)`),
@@ -257,6 +258,8 @@ export const inventoryMovements = pgTable("inventory_movements", {
 }, (t) => [
   foreignKey({ name: "inventory_movements_product_fk", columns: [t.businessId, t.productId], foreignColumns: [products.businessId, products.id] }),
   index("inventory_movements_product_idx").on(t.businessId, t.productId, t.occurredAt),
+  // subqueries correlacionadas (última venda/entrada por produto) filtram só por produto
+  index("inventory_movements_product_type_date_idx").on(t.productId, t.type, t.movementDate),
   index("inventory_movements_business_date_idx").on(t.businessId, t.movementDate),
   index("inventory_movements_reference_idx").on(t.referenceType, t.referenceId),
   check("inventory_movements_after_non_negative", sql`${t.quantityAfter} >= 0 and ${t.valueAfter} >= 0`),
