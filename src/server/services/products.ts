@@ -421,3 +421,60 @@ export async function stockAgingForProducts(tx: Transaction, businessId: string,
     averageDays: qty.greaterThan(0) ? Math.round(weighted.dividedBy(qty).toNumber()) : null,
   };
 }
+
+/** Livro-razão de movimentações (todas as entradas/saídas), paginado e filtrável. */
+export async function listMovements(
+  ctx: TenantContext,
+  opts: { page?: number; pageSize?: number; type?: string; productId?: string; from?: string; to?: string } = {},
+) {
+  const { page, pageSize } = pagination.parse(opts);
+  return withTenant(ctx, async (tx) => {
+    const where = and(
+      eq(inventoryMovements.businessId, ctx.businessId),
+      opts.type ? sql`${inventoryMovements.type} = ${opts.type}` : undefined,
+      opts.productId ? eq(inventoryMovements.productId, opts.productId) : undefined,
+      opts.from ? sql`${inventoryMovements.movementDate} >= ${opts.from}` : undefined,
+      opts.to ? sql`${inventoryMovements.movementDate} <= ${opts.to}` : undefined,
+    );
+    const [{ total }] = await tx.select({ total: count() }).from(inventoryMovements).where(where);
+    const rows = await tx
+      .select({
+        m: inventoryMovements,
+        productName: products.name,
+        unit: products.unit,
+        userName: sql<string | null>`coalesce(${users.fullName}, ${users.email})`,
+        referenceCode: sql<string | null>`case ${inventoryMovements.referenceType}
+          when 'SALE' then (select s.code from sales s where s.id = ${inventoryMovements.referenceId})
+          when 'PURCHASE' then (select pu.code from purchases pu where pu.id = ${inventoryMovements.referenceId})
+          when 'RETURN' then (select r.code from returns r where r.id = ${inventoryMovements.referenceId})
+          else null end`,
+      })
+      .from(inventoryMovements)
+      .innerJoin(products, eq(products.id, inventoryMovements.productId))
+      .leftJoin(users, eq(users.id, inventoryMovements.createdBy))
+      .where(where)
+      .orderBy(desc(inventoryMovements.occurredAt), desc(inventoryMovements.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    return pageOf(rows, total, page, pageSize);
+  });
+}
+
+/** Um produto no formato do seletor (pré-preenchimento de venda/compra via ?produto=). */
+export async function getProductOption(ctx: TenantContext, id: string | undefined) {
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return withTenant(ctx, async (tx) => {
+    const [p] = await tx.select({
+      id: products.id,
+      name: products.name,
+      sku: products.sku,
+      unit: products.unit,
+      stockQuantity: products.stockQuantity,
+      stockValue: products.stockValue,
+      referencePrice: products.referencePrice,
+      minimumPrice: products.minimumPrice,
+      lastUnitCost: sql<string | null>`(select pi.landed_unit_cost from purchase_items pi join purchases pu on pu.id = pi.purchase_id where pi.product_id = ${ref(products.id)} and pu.status = 'CONFIRMED' order by pu.purchase_date desc, pu.number desc limit 1)`,
+    }).from(products).where(and(eq(products.businessId, ctx.businessId), eq(products.id, id), isNull(products.archivedAt)));
+    return p ?? null;
+  });
+}

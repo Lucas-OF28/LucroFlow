@@ -6,17 +6,17 @@ import { Decimal, type DecimalInput, PERCENT_SCALE, dec, money } from "./decimal
  * o denominador é zero (indicador indefinido, não "0%").
  */
 
-/** Margem = lucro / receita × 100. */
+/** Margem = lucro / receita × 100. Indefinida (null) quando a receita é zero ou negativa (ex.: mês só com devoluções). */
 export function margin(profit: DecimalInput, revenue: DecimalInput): Decimal | null {
   const r = dec(revenue);
-  if (r.isZero()) return null;
+  if (r.lessThanOrEqualTo(0)) return null;
   return dec(profit).dividedBy(r).times(100).toDecimalPlaces(PERCENT_SCALE);
 }
 
-/** ROI = lucro / custo × 100. Nunca chamar de margem. */
+/** ROI = lucro / custo × 100. Nunca chamar de margem. Indefinido quando o custo é zero ou negativo. */
 export function roi(profit: DecimalInput, cost: DecimalInput): Decimal | null {
   const c = dec(cost);
-  if (c.isZero()) return null;
+  if (c.lessThanOrEqualTo(0)) return null;
   return dec(profit).dividedBy(c).times(100).toDecimalPlaces(PERCENT_SCALE);
 }
 

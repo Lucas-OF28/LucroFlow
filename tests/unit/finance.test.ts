@@ -261,6 +261,11 @@ describe("indicadores", () => {
     expect(percentChange(10, 0)).toBeNull();
   });
 
+  it("margem/ROI com base negativa são indefinidos (mês só com devoluções não vira margem positiva)", () => {
+    expect(margin("-53.62", "-79.67")).toBeNull();
+    expect(roi("-10", "-5")).toBeNull();
+  });
+
   it("variação percentual", () => {
     expect(s(percentChange("118", "100")!)).toBe("18.00");
     expect(s(percentChange("-50", "-100")!)).toBe("50.00"); // prejuízo diminuiu

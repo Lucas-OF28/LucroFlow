@@ -15,8 +15,10 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:seed": "tsx --conditions=react-server scripts/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:local": "tsx scripts/local-db.ts",
+    "vercel-build": "next typegen && tsc --noEmit && eslint && vitest run --project unit && next build"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
