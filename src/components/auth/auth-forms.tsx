@@ -74,16 +74,6 @@ export function LoginForm({ next, linkError }: { next?: string; linkError?: bool
 
 export function SignUpForm() {
   const [state, action, pending] = useActionState(signUpAction, null);
-  if (state?.ok && state.data.needsConfirmation) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Confirme seu e-mail</CardTitle>
-          <CardDescription>Enviamos um link de confirmação. Depois de confirmar, você vai configurar seu negócio.</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
   return (
     <Card>
       <CardHeader>

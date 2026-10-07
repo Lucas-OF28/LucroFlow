@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createConfirmedUser } from "../auth/admin";
 import { ACTIVE_BUSINESS_COOKIE, requireUser } from "../auth/session";
 import { createBusiness, ensureUserProfile, listMemberships, setUserPreferences } from "../services/businesses";
 import { logger } from "../logger";
@@ -41,25 +42,29 @@ export async function signInAction(_: unknown, form: FormData): Promise<ActionRe
   redirect(safeNext(form.get("next")));
 }
 
-export async function signUpAction(_: unknown, form: FormData): Promise<ActionResult<{ needsConfirmation: boolean }>> {
+/** Cadastro sem verificação de e-mail: a conta nasce confirmada e o usuário já entra logado. */
+export async function signUpAction(_: unknown, form: FormData): Promise<ActionResult> {
   const schema = credentials.extend({ fullName: z.string().trim().min(2, "Informe seu nome.").max(120) });
   const parsed = schema.safeParse({ email: form.get("email"), password: form.get("password"), fullName: form.get("fullName") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const email = parsed.data.email.trim().toLowerCase();
+
+  const created = await createConfirmedUser({ email, password: parsed.data.password, fullName: parsed.data.fullName });
+  if (!created.ok) {
+    logger.warn("auth.sign_up_failed", { reason: created.reason });
+    if (created.reason === "exists") return { ok: false, error: "Este e-mail já está cadastrado. Entre ou recupere a senha." };
+    if (created.reason === "weak_password") return { ok: false, error: "Senha muito fraca. Use letras, números e símbolos." };
+    return { ok: false, error: "Não foi possível criar a conta. Tente novamente." };
+  }
+
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: { data: { full_name: parsed.data.fullName }, emailRedirectTo: `${appUrl()}/auth/callback?next=/onboarding` },
-  });
+  const { error } = await supabase.auth.signInWithPassword({ email, password: parsed.data.password });
   if (error) {
-    logger.warn("auth.sign_up_failed", { reason: error.code });
-    return { ok: false, error: error.code === "user_already_exists" ? "Este e-mail já está cadastrado." : "Não foi possível criar a conta. Tente novamente." };
+    logger.error("auth.sign_in_after_sign_up_failed", { reason: error.code });
+    return { ok: false, error: "Conta criada. Entre com seu e-mail e senha." };
   }
-  if (data.session && data.user) {
-    await ensureUserProfile({ id: data.user.id, email: parsed.data.email, fullName: parsed.data.fullName });
-    redirect("/onboarding");
-  }
-  return { ok: true, data: { needsConfirmation: true } };
+  await ensureUserProfile({ id: created.userId, email, fullName: parsed.data.fullName });
+  redirect("/onboarding");
 }
 
 export async function signOutAction() {

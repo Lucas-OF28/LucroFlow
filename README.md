@@ -66,9 +66,11 @@ Nunca faça commit de `.env.local` (já está no `.gitignore`).
 
 ### Supabase (uma vez por projeto)
 
-1. **Auth → URL Configuration:** *Site URL* = `NEXT_PUBLIC_APP_URL`; adicione `…/auth/callback` em *Redirect URLs*.
-2. **Storage:** crie o bucket **privado** `lucroflow` (sem políticas públicas). O app acessa só pelo servidor e
-   entrega URLs assinadas de 1 h. Fotos ficam em `businesses/{businessId}/products/{productId}/{uuid}.webp`.
+1. **Auth → URL Configuration:** *Site URL* = `NEXT_PUBLIC_APP_URL`; adicione `…/auth/callback` em *Redirect URLs* (usado pela recuperação de senha).
+   Não há verificação de e-mail no cadastro: o app cria a conta já confirmada (decisão D5).
+2. **Storage:** crie o bucket **privado** `lucroflow` (sem políticas), com limite de arquivo de **50 MB**. Fotos até 50 MB vão do
+   navegador direto ao Storage por um link de envio de uso único gerado pelo servidor; o servidor converte para WebP e apaga
+   o original. A exibição usa URLs assinadas de 1 h. Fotos ficam em `businesses/{businessId}/products/{productId}/{uuid}.webp`.
 3. Rode `npm run db:migrate` apontando para o projeto.
 
 > A migration de segurança cria o papel `lucroflow_app`, ativa RLS em todas as tabelas e **revoga** o acesso dos papéis

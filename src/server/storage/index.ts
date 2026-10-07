@@ -5,13 +5,17 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * Abstração de armazenamento de arquivos. Hoje: Supabase Storage (bucket PRIVADO).
  * Trocar de provedor (S3, R2, disco) = nova implementação desta interface.
  *
- * Segurança: o navegador nunca fala direto com o Storage. O servidor valida empresa/papel,
- * grava com a service role (somente servidor) e entrega URLs assinadas de curta duração.
+ * Segurança: o navegador nunca tem credencial do Storage. O servidor valida empresa/papel e entrega
+ * URLs assinadas de curta duração — para LER (exibição) e, no upload, um link de ENVIO de uso único para
+ * um caminho temporário escolhido pelo servidor (arquivos grandes não passam pelo limite de 4,5 MB da Vercel).
  */
 export interface StorageDriver {
   put(path: string, body: Buffer, contentType: string): Promise<void>;
+  get(path: string): Promise<Buffer>;
   remove(paths: string[]): Promise<void>;
   signedUrls(paths: string[], expiresInSeconds?: number): Promise<Map<string, string>>;
+  /** URL para o navegador enviar (PUT) UM arquivo para `path`. Válida por ~2 h, uso único. */
+  createUploadUrl(path: string): Promise<string>;
 }
 
 let cached: StorageDriver | null = null;
@@ -22,6 +26,18 @@ class SupabaseStorageDriver implements StorageDriver {
   async put(path: string, body: Buffer, contentType: string) {
     const { error } = await this.client.storage.from(this.bucket).upload(path, body, { contentType, upsert: false, cacheControl: "31536000" });
     if (error) throw new Error(`storage.put failed: ${error.message}`);
+  }
+
+  async get(path: string) {
+    const { data, error } = await this.client.storage.from(this.bucket).download(path);
+    if (error || !data) throw new Error(`storage.get failed: ${error?.message ?? "not found"}`);
+    return Buffer.from(await data.arrayBuffer());
+  }
+
+  async createUploadUrl(path: string) {
+    const { data, error } = await this.client.storage.from(this.bucket).createSignedUploadUrl(path);
+    if (error || !data) throw new Error(`storage.uploadUrl failed: ${error?.message}`);
+    return data.signedUrl;
   }
 
   async remove(paths: string[]) {

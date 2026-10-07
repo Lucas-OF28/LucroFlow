@@ -5,11 +5,23 @@ import { useRef, useState, useTransition } from "react";
 import { ImagePlus, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { ActionResult } from "@/lib/action-result";
 import { cn } from "@/lib/utils";
-import { removeProductImageAction, setPrimaryImageAction } from "@/server/actions/domain";
+import { finalizeImageUploadAction, prepareImageUploadAction, removeProductImageAction, setPrimaryImageAction } from "@/server/actions/domain";
 
-const MAX = 5 * 1024 * 1024;
+const MAX = 50 * 1024 * 1024;
+
+/** PUT direto no link de envio de uso único, com progresso (fetch não informa progresso de upload). */
+function putWithProgress(url: string, file: File, onProgress: (pct: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("content-type", file.type);
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(String(xhr.status))));
+    xhr.onerror = () => reject(new Error("network"));
+    xhr.send(file);
+  });
+}
 
 export function ImageManager({
   productId,
@@ -26,23 +38,31 @@ export function ImageManager({
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const primary = images.find((i) => i.isPrimary) ?? images[0];
 
   const upload = async (files: FileList | null) => {
     if (!files?.length) return;
-    setUploading(true);
-    for (const file of Array.from(files)) {
+    const list = Array.from(files);
+    for (const [i, file] of list.entries()) {
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { toast.error(`${file.name}: use JPG, PNG ou WebP.`); continue; }
-      if (file.size > MAX) { toast.error(`${file.name}: máximo de 5 MB.`); continue; }
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch(`/api/products/${productId}/images`, { method: "POST", body });
-      const json = (await res.json().catch(() => ({ ok: false, error: "Falha no envio." }))) as ActionResult<unknown>;
-      if (!json.ok) toast.error(json.error);
+      if (file.size > MAX) { toast.error(`${file.name}: máximo de 50 MB.`); continue; }
+      const label = list.length > 1 ? ` (${i + 1}/${list.length})` : "";
+      setUploading(`Preparando${label}…`);
+      const prep = await prepareImageUploadAction(productId, { type: file.type, size: file.size });
+      if (!prep.ok) { toast.error(prep.error); continue; }
+      try {
+        await putWithProgress(prep.data.uploadUrl, file, (pct) => setUploading(`Enviando${label} ${pct}%`));
+      } catch {
+        toast.error(`${file.name}: falha no envio. Verifique a conexão e tente novamente.`);
+        continue;
+      }
+      setUploading(`Otimizando${label}…`);
+      const fin = await finalizeImageUploadAction(productId, prep.data.uploadPath);
+      if (!fin.ok) toast.error(fin.error);
     }
-    setUploading(false);
+    setUploading(null);
     if (input.current) input.current.value = "";
     router.refresh();
   };
@@ -83,8 +103,8 @@ export function ImageManager({
         storageReady ? (
           <>
             <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" id="product-photo" onChange={(e) => upload(e.target.files)} />
-            <Button type="button" variant="outline" className="w-full" disabled={uploading} onClick={() => input.current?.click()}>
-              <ImagePlus className="size-4" /> {uploading ? "Enviando…" : "Adicionar fotos"}
+            <Button type="button" variant="outline" className="w-full" disabled={uploading !== null} onClick={() => input.current?.click()}>
+              <ImagePlus className="size-4" /> <span aria-live="polite">{uploading ?? "Adicionar fotos"}</span>
             </Button>
             {images.length === 1 && canEdit && (
               <Button type="button" variant="ghost" size="sm" className="w-full text-danger" disabled={pending}

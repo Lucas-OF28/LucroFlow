@@ -25,7 +25,7 @@ import { cancelSale, createSale, previewSale } from "../services/sales";
 import { adjustStock } from "../services/stock-adjustments";
 import { updateBusiness, setUserPreferences } from "../services/businesses";
 import { globalSearch } from "../services/search";
-import { removeProductImage, setPrimaryImage } from "../services/images";
+import { finalizeProductImageUpload, prepareProductImageUpload, removeProductImage, setPrimaryImage } from "../services/images";
 import { tenantAction } from "./_run";
 
 function touch(...paths: string[]) {
@@ -167,6 +167,14 @@ export async function globalSearchAction(q: string) {
 }
 
 // ─── Fotos ──────────────────────────────────────────────────────────────────
+export async function prepareImageUploadAction(productId: string, file: { type: string; size: number }) {
+  return tenantAction("product.image_prepare", (ctx) => prepareProductImageUpload(ctx, productId, { type: String(file?.type ?? ""), size: Number(file?.size ?? 0) }), "Não foi possível iniciar o envio da foto.");
+}
+export async function finalizeImageUploadAction(productId: string, uploadPath: string) {
+  const r = await tenantAction("product.image_finalize", (ctx) => finalizeProductImageUpload(ctx, productId, String(uploadPath ?? "")), "Não foi possível processar a foto.");
+  if (r.ok) touch(`/produtos/${productId}`, "/produtos", "/estoque");
+  return r;
+}
 export async function removeProductImageAction(imageId: string, productId: string) {
   const r = await tenantAction("product.image_remove", (ctx) => removeProductImage(ctx, imageId));
   if (r.ok) touch(`/produtos/${productId}`, "/produtos", "/estoque");

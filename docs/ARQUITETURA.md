@@ -92,7 +92,7 @@ as movimentações já são a fonte da verdade, então a migração é localizad
 
 ## 4. Autenticação
 
-1. Cadastro/login/recuperação via Supabase Auth (`@supabase/ssr`, cookies httpOnly).
+1. Cadastro/login/recuperação via Supabase Auth (`@supabase/ssr`, cookies httpOnly). O cadastro cria a conta já confirmada (D5).
 2. `middleware` renova a sessão e redireciona rotas privadas para `/login`.
 3. No primeiro acesso autenticado, o perfil é criado em `users` (sem trigger em `auth.users`, para portabilidade).
 4. Sem empresa → `/onboarding` ("Bem-vindo ao LucroFlow"), que cria `businesses` + `business_members(OWNER)`
@@ -197,7 +197,9 @@ Teste de integração dispara as duas em paralelo contra um Postgres real.
 - Autorização por papel em cada action (`VIEWER` só lê; venda com prejuízo exige `MANAGER+`).
 - RLS (seção 5); Storage em bucket **privado** sem políticas para `anon/authenticated` — todo acesso passa pelo
   servidor (que checa a empresa) e é servido por URL assinada de curta duração.
-- Uploads: tipos `image/jpeg|png|webp` (+ `application/pdf` para comprovantes), até 5 MB, conversão para WebP com `sharp`.
+- Uploads: tipos `image/jpeg|png|webp` (+ `application/pdf` para comprovantes), até **50 MB**. O navegador envia direto ao Storage
+  por um link de uso único, para um caminho temporário da empresa gerado pelo servidor (contorna o limite de 4,5 MB das funções
+  da Vercel); o servidor então decodifica a imagem (valida o conteúdo real), converte para WebP (máx. 1600 px) e apaga o original.
 - Erros: mensagens amigáveis ao usuário; detalhes técnicos só no log estruturado do servidor (com id de correlação).
 - Secrets só em `.env.local` / Vercel; `.env.example` sem valores.
 
@@ -239,3 +241,4 @@ Teste de integração dispara as duas em paralelo contra um Postgres real.
 | D2 | Devoluções reduzem receita e lucro **na data da devolução** (relatórios fechados não mudam). |
 | D3 | Quantidades com **3 casas decimais** (`NUMERIC(14,3)`); unidade `un` é exibida como inteiro. |
 | D4 | Venda abaixo do custo: alerta sempre; confirmação permitida a **OWNER, ADMIN e MANAGER**; registrada na auditoria. |
+| D5 (07/10/2026) | **Cadastro sem verificação de e-mail**: a conta é criada já confirmada pelo servidor e o usuário entra direto. Risco aceito: o e-mail não prova posse (a recuperação de senha continua indo ao dono real do endereço). |
