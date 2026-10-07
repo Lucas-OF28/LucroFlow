@@ -81,7 +81,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
               {list.rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
-                    <Link href={`/vendas/${r.saleId}`} className="font-medium hover:underline">{r.saleCode}</Link>
+                    <Link href={`/vendas/${r.saleId}`} className="row-link font-medium hover:underline">{r.saleCode}</Link>
                     <span className="block text-xs text-muted-foreground">parcela {r.installmentNumber}</span>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{r.customerName ?? "—"}</TableCell>
@@ -89,7 +89,7 @@ export default async function FinancePage({ searchParams }: PageProps<"/financei
                   <TableCell className="tabular hidden text-right md:table-cell">{formatMoney(r.amount)}</TableCell>
                   <TableCell className="tabular text-right">{formatMoney(r.open)}</TableCell>
                   <TableCell>
-                    <span className="flex items-center justify-end gap-2">
+                    <span className="row-action flex items-center justify-end gap-2">
                       <StatusBadge status={r.overdue ? "OVERDUE" : r.status} />
                       {Number(r.open) > 0 && can(ctx.role, "write") && <ReceivePaymentDialog receivableId={r.id} open={r.open} method={r.expectedMethod} today={today} />}
                     </span>

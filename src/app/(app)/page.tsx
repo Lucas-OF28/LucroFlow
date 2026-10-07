@@ -65,7 +65,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
         actions={
           <>
             <PeriodSelector preset={period.preset} from={period.from} to={period.to} />
-            <Button asChild className="hidden md:inline-flex"><Link href="/vendas/nova"><Plus className="size-4" /> Nova venda</Link></Button>
+            <Button asChild className="max-md:w-full"><Link href="/vendas/nova"><Plus className="size-4" /> Nova venda</Link></Button>
           </>
         }
       />

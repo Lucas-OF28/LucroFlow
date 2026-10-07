@@ -75,3 +75,51 @@ export function QuantityInput({
 export function DateInput({ value, onValueChange, className, ...props }: Omit<ComponentProps<"input">, "type" | "onChange"> & { value: string; onValueChange: (v: string) => void }) {
   return <Input type="date" value={value} onChange={(e) => onValueChange(e.target.value)} className={cn("tabular", className)} {...props} />;
 }
+
+/**
+ * Quantidade com botões − / + (toque em vez de digitar). O campo continua editável para valores quebrados (kg, m).
+ * `onRemove`: chamado ao diminuir abaixo de 1 (ex.: tirar o item da venda).
+ */
+export function QuantityStepper({
+  value,
+  onValueChange,
+  unit = "un",
+  max,
+  onRemove,
+  label,
+  id,
+}: {
+  value: string;
+  onValueChange: (v: string) => void;
+  unit?: string;
+  max?: number;
+  onRemove?: () => void;
+  label: string;
+  id?: string;
+}) {
+  const n = Number(value) || 0;
+  const atMax = max !== undefined && n + 1 > max;
+  const fmt = (x: number) => (unit === "un" ? String(Math.round(x)) : String(Math.round(x * 1000) / 1000));
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label={label}>
+      <button
+        type="button"
+        className="flex size-11 shrink-0 items-center justify-center rounded-lg border text-lg font-medium active:bg-muted md:size-8 md:text-base"
+        aria-label={n <= 1 && onRemove ? `Remover ${label}` : `Diminuir ${label}`}
+        onClick={() => (n <= 1 ? onRemove?.() : onValueChange(fmt(n - 1)))}
+      >
+        −
+      </button>
+      <QuantityInput id={id} aria-label={label} unit={unit} value={value} onValueChange={onValueChange} className="w-16 text-center md:w-14" />
+      <button
+        type="button"
+        className="flex size-11 shrink-0 items-center justify-center rounded-lg border text-lg font-medium active:bg-muted disabled:opacity-40 md:size-8 md:text-base"
+        aria-label={`Aumentar ${label}`}
+        disabled={atMax}
+        onClick={() => onValueChange(fmt(n + 1))}
+      >
+        +
+      </button>
+    </div>
+  );
+}

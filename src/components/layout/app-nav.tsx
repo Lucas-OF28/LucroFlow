@@ -36,9 +36,13 @@ export function SidebarNav() {
   );
 }
 
+/** Telas de formulário têm a própria barra de ação no rodapé (Finalizar/Confirmar). */
+const FOCUS_ROUTES = ["/vendas/nova", "/compras/nova"];
+
 /** Navegação inferior no celular: INÍCIO · ESTOQUE · + · VENDAS · RELATÓRIOS (§44). */
 export function MobileBottomNav() {
   const pathname = usePathname();
+  if (FOCUS_ROUTES.includes(pathname)) return null;
   const items = [
     { href: "/", label: "Início", icon: Home },
     { href: "/estoque", label: "Estoque", icon: Boxes },

@@ -269,7 +269,8 @@ export async function searchProductsForSelector(ctx: TenantContext, q: string, o
         q.trim() ? sql`(${products.name} ilike ${p} or ${products.sku} ilike ${p} or ${products.barcode} = ${q.trim()})` : undefined,
         opts.inStockOnly ? sql`${products.stockQuantity} > 0` : undefined,
       ))
-      .orderBy(asc(products.name))
+      // sem busca: os vendidos mais recentemente primeiro (venda rápida com um toque)
+      .orderBy(...(q.trim() ? [asc(products.name)] : [sql`(select max(m.occurred_at) from inventory_movements m where m.product_id = ${ref(products.id)} and m.type = 'SALE') desc nulls last`, asc(products.name)]))
       .limit(20);
   });
 }

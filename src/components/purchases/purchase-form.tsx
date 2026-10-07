@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ChevronDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { DateInput, MoneyInput, QuantityInput } from "@/components/shared/inputs";
+import { DateInput, MoneyInput, QuantityStepper } from "@/components/shared/inputs";
 import { type ProductOption, ProductSelector } from "@/components/shared/selectors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,12 +78,17 @@ export function PurchaseForm({
   const valid = summary && !("error" in summary);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="grid gap-4 pb-24 lg:grid-cols-[1fr_320px] lg:gap-6 lg:pb-0">
       <div className="space-y-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Itens</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <ProductSelector placeholder="Adicionar produto à compra…" onSelect={(p) => setLines((ls) => [...ls, newLine(p, p.lastUnitCost ? Number(p.lastUnitCost).toFixed(2) : "")])} />
+            <ProductSelector placeholder="Adicionar produto à compra…" onSelect={(p) => setLines((ls) => {
+              // mesmo produto de novo = +1 na linha existente
+              const existing = ls.find((l) => l.product.id === p.id);
+              if (existing) return ls.map((l) => (l.key === existing.key ? { ...l, quantity: String((Number(l.quantity) || 0) + 1) } : l));
+              return [...ls, newLine(p, p.lastUnitCost ? Number(p.lastUnitCost).toFixed(2) : "")];
+            })} />
             {lines.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">Nenhum item. Busque um produto acima — ou <Link href="/produtos/novo" className="underline">cadastre um novo</Link>.</p>}
             <ul className="space-y-3">
               {lines.map((l, i) => {
@@ -94,9 +99,9 @@ export function PurchaseForm({
                       <span className="truncate font-medium">{l.product.name}</span>
                       <Button variant="ghost" size="icon-sm" aria-label={`Remover ${l.product.name}`} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}><Trash2 className="size-4" /></Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <div className="grid gap-1"><Label className="text-xs" htmlFor={`q-${l.key}`}>Qtd. ({l.product.unit})</Label><QuantityInput id={`q-${l.key}`} unit={l.product.unit} value={l.quantity} onValueChange={(v) => update(l.key, { quantity: v })} /></div>
-                      <div className="grid gap-1"><Label className="text-xs" htmlFor={`c-${l.key}`}>Custo unitário</Label><MoneyInput id={`c-${l.key}`} value={l.unitCost} onValueChange={(v) => update(l.key, { unitCost: v })} /></div>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <QuantityStepper label={`quantidade de ${l.product.name} (${l.product.unit})`} unit={l.product.unit} value={l.quantity} onValueChange={(v) => update(l.key, { quantity: v })} onRemove={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} />
+                      <div className="grid min-w-32 flex-1 gap-1"><Label className="text-xs" htmlFor={`c-${l.key}`}>Custo unitário</Label><MoneyInput id={`c-${l.key}`} value={l.unitCost} onValueChange={(v) => update(l.key, { unitCost: v })} /></div>
                       {showLineExtras && (
                         <>
                           <div className="grid gap-1"><Label className="text-xs" htmlFor={`d-${l.key}`}>Desconto do item</Label><MoneyInput id={`d-${l.key}`} value={l.discount} onValueChange={(v) => update(l.key, { discount: v })} /></div>
@@ -178,10 +183,20 @@ export function PurchaseForm({
             ) : (
               <p className="text-muted-foreground">Adicione itens.</p>
             )}
-            <Button className="mt-2 w-full" size="lg" disabled={!valid || pending} onClick={submit}>{pending ? "Registrando…" : "Confirmar compra"}</Button>
+            <Button className="mt-2 hidden w-full lg:flex" size="lg" disabled={!valid || pending} onClick={submit}>{pending ? "Registrando…" : "Confirmar compra"}</Button>
           </CardContent>
         </Card>
       </aside>
+
+      <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-4 pt-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="tabular text-lg leading-tight font-semibold">{formatMoney(valid ? summary.total.toFixed(2) : "0")}</p>
+            <p className="text-xs text-muted-foreground">{lines.length} item(ns) · vai para o estoque</p>
+          </div>
+          <Button size="lg" className="min-w-40" disabled={!valid || pending} onClick={submit}>{pending ? "Registrando…" : "Confirmar compra"}</Button>
+        </div>
+      </div>
     </div>
   );
 }

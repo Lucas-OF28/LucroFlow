@@ -60,7 +60,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/produto
               {list.rows.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <Link href={`/produtos/${p.id}`} className="flex items-center gap-3 font-medium hover:underline">
+                    <Link href={`/produtos/${p.id}`} className="row-link flex items-center gap-3 font-medium hover:underline">
                       <ProductThumb url={p.imagePath ? urls.get(p.imagePath) : undefined} name={p.name} />
                       <span className="min-w-0">
                         <span className="block truncate">{p.name}</span>

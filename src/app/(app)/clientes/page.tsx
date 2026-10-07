@@ -53,7 +53,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
               {list.rows.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
-                    <Link href={`/clientes/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
+                    <Link href={`/clientes/${c.id}`} className="row-link font-medium hover:underline">{c.name}</Link>
                     <span className="block text-xs text-muted-foreground">{c.whatsapp ?? c.phone ?? c.email ?? ""}</span>
                   </TableCell>
                   <TableCell className="tabular hidden text-right sm:table-cell">{c.saleCount}</TableCell>

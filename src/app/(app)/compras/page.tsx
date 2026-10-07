@@ -68,7 +68,7 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/compra
               {list.rows.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <Link href={`/compras/${p.id}`} className="font-medium hover:underline">{p.code}</Link>
+                    <Link href={`/compras/${p.id}`} className="row-link font-medium hover:underline">{p.code}</Link>
                     {p.status === "CANCELLED" && <StatusBadge status="CANCELLED" className="ml-2" />}
                     {p.reference && <span className="block text-xs text-muted-foreground">{p.reference}</span>}
                   </TableCell>

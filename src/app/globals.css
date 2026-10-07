@@ -163,3 +163,11 @@
   /* área segura do iPhone para a navegação inferior */
   .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
 }
+
+/* Linha inteira clicável nas listas: o link marcado com .row-link cobre a <tr> (alvo de toque grande no celular).
+   Botões/links secundários da linha ficam acima com .row-action. */
+@layer components {
+  tr:has(.row-link) { position: relative; cursor: pointer; }
+  .row-link::after { content: ""; position: absolute; inset: 0; }
+  .row-action { position: relative; z-index: 1; }
+}

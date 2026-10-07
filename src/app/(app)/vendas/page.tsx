@@ -71,7 +71,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/vendas">) 
                 return (
                   <TableRow key={s.id} className={s.status === "CANCELLED" ? "opacity-60" : undefined}>
                     <TableCell>
-                      <Link href={`/vendas/${s.id}`} className="font-medium hover:underline">{s.code}</Link>
+                      <Link href={`/vendas/${s.id}`} className="row-link font-medium hover:underline">{s.code}</Link>
                       {s.status === "CANCELLED" && <StatusBadge status="CANCELLED" className="ml-2" />}
                       <span className="block text-xs text-muted-foreground sm:hidden">{formatDate(s.saleDate)}</span>
                     </TableCell>

@@ -50,7 +50,7 @@ export default async function SuppliersPage({ searchParams }: PageProps<"/fornec
               {list.rows.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell>
-                    <Link href={`/fornecedores/${s.id}`} className="font-medium hover:underline">{s.name}</Link>
+                    <Link href={`/fornecedores/${s.id}`} className="row-link font-medium hover:underline">{s.name}</Link>
                     <span className="block text-xs text-muted-foreground">{s.companyName ?? s.whatsapp ?? s.phone ?? ""}</span>
                   </TableCell>
                   <TableCell className="tabular hidden text-right sm:table-cell">{s.purchaseCount}</TableCell>
