@@ -6,6 +6,7 @@ import { productImages, products } from "../db/schema";
 import { type TenantContext, withTenant } from "../db/tenant";
 import { AppError, notFound } from "../errors";
 import { getStorage } from "../storage";
+import { enforce } from "../rate-limit";
 import { assertCan, audit } from "./_base";
 
 export const IMAGE_MAX_BYTES = 50 * 1024 * 1024;
@@ -31,6 +32,7 @@ export async function prepareProductImageUpload(ctx: TenantContext, productId: s
   assertCan(ctx, "write");
   if (!IMAGE_TYPES.includes(file.type as (typeof IMAGE_TYPES)[number])) throw new AppError("VALIDATION", "Envie uma imagem JPG, PNG ou WebP.");
   if (!(file.size > 0) || file.size > IMAGE_MAX_BYTES) throw new AppError("VALIDATION", "A imagem deve ter no máximo 50 MB.");
+  await enforce("uploadUser", ctx.userId);
   await assertCanAddImage(ctx, productId);
   const uploadPath = `businesses/${ctx.businessId}/uploads/${randomUUID()}`;
   return { uploadPath, uploadUrl: await getStorage().createUploadUrl(uploadPath) };

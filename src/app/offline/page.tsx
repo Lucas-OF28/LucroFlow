@@ -1,8 +1,6 @@
 import { WifiOff } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 
-export const dynamic = "force-static";
-
 export default function OfflinePage() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">

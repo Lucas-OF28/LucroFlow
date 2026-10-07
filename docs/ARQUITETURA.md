@@ -201,6 +201,16 @@ Teste de integração dispara as duas em paralelo contra um Postgres real.
   por um link de uso único, para um caminho temporário da empresa gerado pelo servidor (contorna o limite de 4,5 MB das funções
   da Vercel); o servidor então decodifica a imagem (valida o conteúdo real), converte para WebP (máx. 1600 px) e apaga o original.
 - Erros: mensagens amigáveis ao usuário; detalhes técnicos só no log estruturado do servidor (com id de correlação).
+  Os logs não guardam os valores das consultas que falharam (nomes, telefones, valores): só a estrutura da query.
+- **Sessão**: cookies do Supabase Auth gravados como `httpOnly` + `SameSite=Lax` + `Secure` (o navegador nunca usa o
+  cliente Supabase; o token não é acessível por JavaScript, então um script injetado não consegue roubá-lo).
+- **Content Security Policy** com nonce por requisição (gerado no `proxy.ts`): só scripts do próprio app executam;
+  `connect-src` limitado ao app e ao Supabase (dados não podem ser enviados a terceiros); sem iframes (`frame-ancestors none`).
+  Também: HSTS, `X-Frame-Options`, `COOP/CORP same-origin`, `nosniff`, `Referrer-Policy`.
+- **Limite de tentativas** (tabela `app.rate_limits`, chaves em hash SHA-256): login (por IP e por e-mail),
+  cadastro (por IP), recuperação de senha, uploads e exportações. Necessário porque o cadastro usa a chave admin (D5).
+- **Server Actions**: proteção CSRF nativa do Next (checagem de Origin); IDs vindos do navegador validados como UUID
+  antes de qualquer consulta.
 - Secrets só em `.env.local` / Vercel; `.env.example` sem valores.
 
 ## 11. Roadmap (fases)

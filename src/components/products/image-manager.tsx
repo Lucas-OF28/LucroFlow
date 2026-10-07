@@ -114,7 +114,7 @@ export function ImageManager({
             )}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground">Fotos indisponíveis: configure o Supabase Storage (SUPABASE_SERVICE_ROLE_KEY).</p>
+          <p className="text-xs text-muted-foreground">Fotos indisponíveis no momento.</p>
         )
       )}
     </div>

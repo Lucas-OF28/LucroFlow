@@ -26,7 +26,15 @@ import { adjustStock } from "../services/stock-adjustments";
 import { updateBusiness, setUserPreferences } from "../services/businesses";
 import { globalSearch } from "../services/search";
 import { finalizeProductImageUpload, prepareProductImageUpload, removeProductImage, setPrimaryImage } from "../services/images";
+import { notFound } from "../errors";
 import { tenantAction } from "./_run";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** IDs vindos do navegador: formato inválido = "não encontrado" (não chega ao banco). */
+function uid(value: unknown): string {
+  if (typeof value !== "string" || !UUID.test(value)) throw notFound();
+  return value;
+}
 
 function touch(...paths: string[]) {
   for (const p of ["/", ...paths]) revalidatePath(p, p === "/" ? "layout" : "page");
@@ -39,12 +47,12 @@ export async function createProductAction(input: unknown) {
   return r;
 }
 export async function updateProductAction(id: string, input: unknown) {
-  const r = await tenantAction("product.update", (ctx) => updateProduct(ctx, id, input), "Não foi possível salvar o produto.");
+  const r = await tenantAction("product.update", (ctx) => updateProduct(ctx, uid(id), input), "Não foi possível salvar o produto.");
   if (r.ok) touch("/produtos", `/produtos/${id}`, "/estoque");
   return r;
 }
 export async function archiveProductAction(id: string) {
-  const r = await tenantAction("product.archive", (ctx) => archiveProduct(ctx, id));
+  const r = await tenantAction("product.archive", (ctx) => archiveProduct(ctx, uid(id)));
   if (r.ok) touch("/produtos", "/estoque");
   return r;
 }
@@ -54,12 +62,12 @@ export async function createCategoryAction(input: unknown) {
   return r;
 }
 export async function renameCategoryAction(id: string, input: unknown) {
-  const r = await tenantAction("category.rename", (ctx) => renameCategory(ctx, id, input));
+  const r = await tenantAction("category.rename", (ctx) => renameCategory(ctx, uid(id), input));
   if (r.ok) touch("/configuracoes");
   return r;
 }
 export async function archiveCategoryAction(id: string) {
-  const r = await tenantAction("category.archive", (ctx) => archiveCategory(ctx, id));
+  const r = await tenantAction("category.archive", (ctx) => archiveCategory(ctx, uid(id)));
   if (r.ok) touch("/configuracoes", "/produtos");
   return r;
 }
@@ -74,7 +82,7 @@ export async function createSupplierAction(input: unknown) {
   return r;
 }
 export async function updateSupplierAction(id: string, input: unknown) {
-  const r = await tenantAction("supplier.update", (ctx) => updateSupplier(ctx, id, input));
+  const r = await tenantAction("supplier.update", (ctx) => updateSupplier(ctx, uid(id), input));
   if (r.ok) touch("/fornecedores", `/fornecedores/${id}`);
   return r;
 }
@@ -84,7 +92,7 @@ export async function createCustomerAction(input: unknown) {
   return r;
 }
 export async function updateCustomerAction(id: string, input: unknown) {
-  const r = await tenantAction("customer.update", (ctx) => updateCustomer(ctx, id, input));
+  const r = await tenantAction("customer.update", (ctx) => updateCustomer(ctx, uid(id), input));
   if (r.ok) touch("/clientes", `/clientes/${id}`);
   return r;
 }
@@ -99,7 +107,7 @@ export async function createPurchaseAction(input: unknown) {
   return r;
 }
 export async function cancelPurchaseAction(id: string, input: unknown) {
-  const r = await tenantAction("purchase.cancel", (ctx) => cancelPurchase(ctx, id, input));
+  const r = await tenantAction("purchase.cancel", (ctx) => cancelPurchase(ctx, uid(id), input));
   if (r.ok) touch("/compras", `/compras/${id}`, "/estoque");
   return r;
 }
@@ -114,7 +122,7 @@ export async function createSaleAction(input: unknown) {
   return r;
 }
 export async function cancelSaleAction(id: string, input: unknown) {
-  const r = await tenantAction("sale.cancel", (ctx) => cancelSale(ctx, id, input), "Não foi possível cancelar a venda.");
+  const r = await tenantAction("sale.cancel", (ctx) => cancelSale(ctx, uid(id), input), "Não foi possível cancelar a venda.");
   if (r.ok) touch("/vendas", `/vendas/${id}`, "/estoque", "/financeiro");
   return r;
 }
@@ -136,7 +144,7 @@ export async function createExpenseAction(input: unknown) {
   return r;
 }
 export async function cancelExpenseAction(id: string) {
-  const r = await tenantAction("expense.cancel", (ctx) => cancelExpense(ctx, id));
+  const r = await tenantAction("expense.cancel", (ctx) => cancelExpense(ctx, uid(id)));
   if (r.ok) touch("/despesas");
   return r;
 }
@@ -168,20 +176,20 @@ export async function globalSearchAction(q: string) {
 
 // ─── Fotos ──────────────────────────────────────────────────────────────────
 export async function prepareImageUploadAction(productId: string, file: { type: string; size: number }) {
-  return tenantAction("product.image_prepare", (ctx) => prepareProductImageUpload(ctx, productId, { type: String(file?.type ?? ""), size: Number(file?.size ?? 0) }), "Não foi possível iniciar o envio da foto.");
+  return tenantAction("product.image_prepare", (ctx) => prepareProductImageUpload(ctx, uid(productId), { type: String(file?.type ?? ""), size: Number(file?.size ?? 0) }), "Não foi possível iniciar o envio da foto.");
 }
 export async function finalizeImageUploadAction(productId: string, uploadPath: string) {
-  const r = await tenantAction("product.image_finalize", (ctx) => finalizeProductImageUpload(ctx, productId, String(uploadPath ?? "")), "Não foi possível processar a foto.");
+  const r = await tenantAction("product.image_finalize", (ctx) => finalizeProductImageUpload(ctx, uid(productId), String(uploadPath ?? "")), "Não foi possível processar a foto.");
   if (r.ok) touch(`/produtos/${productId}`, "/produtos", "/estoque");
   return r;
 }
 export async function removeProductImageAction(imageId: string, productId: string) {
-  const r = await tenantAction("product.image_remove", (ctx) => removeProductImage(ctx, imageId));
+  const r = await tenantAction("product.image_remove", (ctx) => removeProductImage(ctx, uid(imageId)));
   if (r.ok) touch(`/produtos/${productId}`, "/produtos", "/estoque");
   return r;
 }
 export async function setPrimaryImageAction(imageId: string, productId: string) {
-  const r = await tenantAction("product.image_primary", (ctx) => setPrimaryImage(ctx, imageId));
+  const r = await tenantAction("product.image_primary", (ctx) => setPrimaryImage(ctx, uid(imageId)));
   if (r.ok) touch(`/produtos/${productId}`, "/produtos", "/estoque");
   return r;
 }

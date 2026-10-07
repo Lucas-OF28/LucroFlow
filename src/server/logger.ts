@@ -1,10 +1,16 @@
 /**
  * Logger estruturado (JSON em uma linha) — pronto para qualquer coletor (Vercel, Datadog, Loki…).
- * Nunca registrar tokens, senhas ou chaves. Campos sensíveis conhecidos são mascarados.
+ * Nunca registrar tokens, senhas ou chaves. Campos sensíveis conhecidos são mascarados, e erros de banco perdem os
+ * VALORES das consultas (parâmetros com nomes, telefones, valores) — fica só a estrutura da query, suficiente para diagnóstico.
  */
 type Level = "debug" | "info" | "warn" | "error";
 const ORDER: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
-const SENSITIVE = /pass(word)?|token|secret|authorization|cookie|key/i;
+const SENSITIVE = /pass(word)?|token|secret|authorization|cookie|key|^(parameters|params|args)$/i;
+
+/** Remove o trecho "params: …" que o Drizzle anexa às mensagens de erro de query. */
+function scrubMessage(message: string): string {
+  return message.replace(/\nparams:[\s\S]*$/, "\nparams: [redacted]");
+}
 
 function threshold(): number {
   const l = (process.env.LOG_LEVEL ?? "info") as Level;
@@ -14,7 +20,17 @@ function threshold(): number {
 function sanitize(value: unknown, depth = 0): unknown {
   if (depth > 4) return "[…]";
   if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: value.stack, cause: sanitize((value as { cause?: unknown }).cause, depth + 1) };
+    const extra: Record<string, unknown> = {};
+    for (const k of ["code", "constraint_name", "table_name", "column_name", "severity", "routine"]) {
+      if (k in value) extra[k] = (value as unknown as Record<string, unknown>)[k];
+    }
+    return {
+      name: value.name,
+      message: scrubMessage(value.message),
+      stack: value.stack ? scrubMessage(value.stack) : undefined,
+      ...extra,
+      cause: sanitize((value as { cause?: unknown }).cause, depth + 1),
+    };
   }
   if (Array.isArray(value)) return value.slice(0, 50).map((v) => sanitize(v, depth + 1));
   if (value && typeof value === "object") {
@@ -22,6 +38,7 @@ function sanitize(value: unknown, depth = 0): unknown {
     for (const [k, v] of Object.entries(value)) out[k] = SENSITIVE.test(k) ? "[redacted]" : sanitize(v, depth + 1);
     return out;
   }
+  if (typeof value === "string") return scrubMessage(value);
   return value;
 }
 
@@ -41,5 +58,7 @@ export const logger = {
 };
 
 export function newErrorId(): string {
-  return Math.random().toString(36).slice(2, 10).toUpperCase();
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
 }
+
+export const __test = { sanitize };

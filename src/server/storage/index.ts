@@ -65,7 +65,7 @@ export function getStorage(): StorageDriver {
   if (cached) return cached;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("Storage não configurado (SUPABASE_SERVICE_ROLE_KEY).");
+  if (!url || !key) throw new Error("storage not configured");
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   cached = new SupabaseStorageDriver(client, process.env.SUPABASE_STORAGE_BUCKET || "lucroflow");
   return cached;

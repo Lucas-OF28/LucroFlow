@@ -2,11 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { requireTenant } from "@/server/auth/session";
 import { EXPORTS, type ExportKind, buildExport } from "@/server/services/export";
 import { logger, newErrorId } from "@/server/logger";
+import { TOO_MANY, hit } from "@/server/rate-limit";
 
 export async function GET(request: NextRequest, { params }: RouteContext<"/api/export/[report]">) {
   const { report } = await params;
   if (!EXPORTS.includes(report as ExportKind)) return NextResponse.json({ error: "Relatório inválido." }, { status: 404 });
   const ctx = await requireTenant();
+  if (!(await hit("exportUser", ctx.userId))) return NextResponse.json({ error: TOO_MANY }, { status: 429 });
   try {
     const sp = request.nextUrl.searchParams;
     const { filename, csv } = await buildExport(ctx, report as ExportKind, {

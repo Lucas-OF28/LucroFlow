@@ -9,6 +9,7 @@ import { createConfirmedUser } from "../auth/admin";
 import { ACTIVE_BUSINESS_COOKIE, requireUser } from "../auth/session";
 import { createBusiness, ensureUserProfile, listMemberships, setUserPreferences } from "../services/businesses";
 import { logger } from "../logger";
+import { TOO_MANY, clientIp, hit } from "../rate-limit";
 import { runAction } from "./_run";
 
 const credentials = z.object({
@@ -32,6 +33,9 @@ function firstIssue(e: z.ZodError) {
 export async function signInAction(_: unknown, form: FormData): Promise<ActionResult> {
   const parsed = credentials.safeParse({ email: form.get("email"), password: form.get("password") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  // força bruta: limite por IP e por e-mail
+  const ip = await clientIp();
+  if (!(await hit("signInIp", ip)) || !(await hit("signInEmail", parsed.data.email))) return { ok: false, error: TOO_MANY };
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error || !data.user) {
@@ -48,6 +52,8 @@ export async function signUpAction(_: unknown, form: FormData): Promise<ActionRe
   const parsed = schema.safeParse({ email: form.get("email"), password: form.get("password"), fullName: form.get("fullName") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
   const email = parsed.data.email.trim().toLowerCase();
+  // o cadastro usa a chave admin (sem o limite nativo do Supabase): limite próprio por IP
+  if (!(await hit("signUpIp", await clientIp()))) return { ok: false, error: TOO_MANY };
 
   const created = await createConfirmedUser({ email, password: parsed.data.password, fullName: parsed.data.fullName });
   if (!created.ok) {
@@ -77,6 +83,7 @@ export async function signOutAction() {
 export async function requestPasswordResetAction(_: unknown, form: FormData): Promise<ActionResult> {
   const parsed = z.object({ email: z.email("Informe um e-mail válido.") }).safeParse({ email: form.get("email") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!(await hit("resetIp", await clientIp())) || !(await hit("resetEmail", parsed.data.email))) return { ok: false, error: TOO_MANY };
   const supabase = await createSupabaseServerClient();
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${appUrl()}/auth/callback?next=/auth/redefinir-senha`,
